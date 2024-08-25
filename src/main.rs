@@ -16,6 +16,10 @@ use rocket::response::content::RawText;
 use rocket::tokio::fs::{self, File};
 use std::process::Command;
 
+use std::fs::OpenOptions;
+use std::io::{BufReader, BufRead, Write};
+
+
 use paste_id::PasteId;
 
 // In a real application, these would be retrieved dynamically from a config.
@@ -26,11 +30,30 @@ const ID_LENGTH: usize = 6;
 async fn upload(paste: Data<'_>) -> io::Result<String> {
     let id = PasteId::new(ID_LENGTH);
     paste.open(128.kibibytes()).into_file(id.file_path()).await?;
+
+
+    // fix webkit stuff  (bad code put in fn)
+    let mut file = OpenOptions::new()
+    .read(true)
+    .write(true)
+    .open(id.file_path().to_str().unwrap())
+    .expect("file.txt doesn't exist or so");
+
+    let mut lines = BufReader::new(file).lines().skip(3)
+    .map(|x| x.unwrap())
+    .collect::<Vec<String>>().split_last().unwrap().1.join("\n");
+
+    fs::write(id.file_path().to_str().unwrap(), lines).await.expect("Can't write");
+
+
     let p1 = Command::new("python3")
         // .current_dir("../upload")
         .args([id.file_path()])
         .output();
 
+
+    
+        
     
     // Ok(uri!(HOST, retrieve(id)).to_string())
     let hello = String::from_utf8(p1.unwrap().stdout).unwrap(); //res.stdout;
